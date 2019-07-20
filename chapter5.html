@@ -1,0 +1,72 @@
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">
+    <script src="node_modules/rxjs/bundles/rxjs.umd.js"></script>
+    <style>
+        .autocomplete{
+            position: relative;
+            width: 300px;
+        }
+        #search {
+            width: 100%;
+        }
+        #suggestLayer {
+            position: absolute;
+            top: 20px;
+            color: #666;
+            padding: 0px;
+            margin: 0px;
+            width: 100%;
+        }
+        #suggestLayer li {
+            border: 1px solid #bec8d8;
+            list-style: none;
+        }
+        .user img {
+            position: relative;
+            float: left;
+            margin-right: 10px;
+        }
+        .user p {
+            line-height: 50px;
+            margin: 0px;
+            padding: 0px;
+        }
+    </style>
+</head>
+<body>
+<p>사용자 검색</p>
+<div class="autocomplete">
+    <input type="input" id="search" placeholder="검색하고 싶은 사용자 아이디 입력" />
+    <ul id="suggestLayer"></ul>
+</div>
+<script>
+    const $layer = document.getElementById("suggestLayer");
+
+    function drawLayer(items) {
+        $layer.innerHTML = items.map(user => {
+            return `<li class="user">
+<img src="${user.avatar_url}" width="50px" height="50px"/>
+<p><a href="${user.html_url}" target="_blank">${user.login}</a></p>
+</li>`
+        }).join("");
+    }
+
+    const { fromEvent } = rxjs;
+    const { map, mergeMap, debounceTime, filter, distinctUntilChanged } = rxjs.operators;
+    const { ajax } = rxjs.ajax;
+    const user$ = fromEvent(document.getElementById("search"), 'keyup').pipe(
+        debounceTime(300),  //  300ms 뒤에 데이터를 전달
+        map(event => event.target.value),
+        distinctUntilChanged(), // 특수키가 입력된 경우에는 나오지 않기 위해 중복 데이터 처리
+        filter(query => query.trim().length > 0),
+        mergeMap(query => ajax.getJSON(`https://api.github.com/search/users?q=${query}`)),
+    );
+
+    user$.subscribe(v => {
+        drawLayer(v.items);
+    });
+</script>
+</body>
+</html>
